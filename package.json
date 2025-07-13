@@ -1,0 +1,45 @@
+{
+  "name": "job-application-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "workers": "node src/worker.js",
+    "dev:workers": "nodemon src/worker.js",
+    "dev:all": "npm run dev & npm run dev:workers",
+    "db:viewer": "node db-viewer.js",
+    "db:cli": "sqlite3 data/jobs.db",
+    "db:reset": "node reset-db.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@bull-board/api": "^6.11.0",
+    "@bull-board/express": "^6.11.0",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.10.0",
+    "axios-retry": "^4.5.0",
+    "better-sqlite3": "^12.2.0",
+    "bullmq": "^5.56.4",
+    "cheerio": "^1.1.0",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "knex": "^3.1.0",
+    "linkedin-jobs-scraper": "^18.0.1",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.5",
+    "pdf-parse": "^1.1.1",
+    "redis": "^5.6.0",
+    "user-agents": "^1.1.598"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

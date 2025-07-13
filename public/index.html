@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Job Application Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-in {
+      animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    .card {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+      transition: all 0.2s;
+      border-color: #404040;
+    }
+
+    .btn {
+      font-weight: 500;
+      transition: all 0.2s;
+      border-radius: 6px;
+    }
+
+    .btn-primary {
+      background: white;
+      color: black;
+    }
+
+    .btn-primary:hover {
+      background: #e5e5e5;
+    }
+
+    .btn-secondary {
+      background: #0a0a0a;
+      color: white;
+      border: 1px solid #262626;
+    }
+
+    .btn-secondary:hover {
+      background: #171717;
+      border-color: #404040;
+    }
+
+    .skill-tag {
+      background: #171717;
+      border: 1px solid #262626;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #a3a3a3;
+    }
+
+    .match-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .match-high {
+      background: white;
+      color: black;
+    }
+
+    .match-medium {
+      background: #171717;
+      color: white;
+      border: 1px solid #262626;
+    }
+
+    .match-low {
+      background: #0a0a0a;
+      color: #737373;
+      border: 1px solid #262626;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #0a0a0a;
+    }
+
+    input[type="checkbox"]:checked {
+      background: white;
+      border-color: white;
+    }
+
+    .upload-area {
+      border: 2px dashed #262626;
+      background: #0a0a0a;
+      transition: all 0.2s;
+    }
+
+    .upload-area:hover {
+      border-color: #404040;
+      background: #171717;
+    }
+
+    .upload-area.dragover {
+      border-color: white;
+      background: #171717;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #262626;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .alert-success {
+      background: #171717;
+      border: 1px solid #262626;
+      color: white;
+    }
+
+    .alert-error {
+      background: white;
+      color: black;
+    }
+
+    .alert-info {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      color: #a3a3a3;
+    }
+
+    .stat-card {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #737373;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <header class="text-center mb-12 animate-in">
+      <h1 class="text-5xl font-bold mb-4">AI Job Application Assistant</h1>
+      <p class="text-gray-400 text-lg">Upload your resume and let AI find perfect job matches</p>
+    </header>
+
+    <section class="mb-12 animate-in" style="animation-delay: 0.1s">
+      <div class="card p-8">
+        <form id="uploadForm">
+          <div class="upload-area rounded-lg p-12 text-center cursor-pointer mb-6" id="uploadArea">
+            <i class="fas fa-cloud-upload-alt text-4xl text-gray-500 mb-4"></i>
+            <h3 class="text-xl font-semibold mb-2">Drop your resume here</h3>
+            <p class="text-gray-400 mb-1">or click to browse</p>
+            <p class="text-sm text-gray-500">Supports PDF format</p>
+            <input type="file" id="resumeFile" class="hidden" accept=".pdf" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary w-full py-3 px-6 flex items-center justify-center gap-2" id="uploadBtn">
+            <i class="fas fa-rocket"></i>
+            <span>Start Job Search</span>
+          </button>
+          
+          <div class="flex items-center justify-center mt-6">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="advancedLinkedin" name="advancedLinkedin">
+              <span class="text-sm text-gray-400">
+                <i class="fab fa-linkedin"></i> Advanced LinkedIn Search
+              </span>
+            </label>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="resultsSection" class="hidden animate-in">
+      <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+        <h2 class="text-3xl font-bold">Job Matches</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-primary px-4 py-2 text-sm filter-btn active" data-filter="all">All Jobs</button>
+          <button class="btn btn-secondary px-4 py-2 text-sm filter-btn" data-filter="high">High Match</button>
+          <button class="btn btn-secondary px-4 py-2 text-sm filter-btn" data-filter="medium">Medium Match</button>
+          <button class="btn btn-secondary px-4 py-2 text-sm filter-btn" data-filter="low">Low Match</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 hidden" id="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="totalJobs">0</div>
+          <div class="stat-label">Total Jobs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="highMatches">0</div>
+          <div class="stat-label">High Matches</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="appliedJobs">0</div>
+          <div class="stat-label">Applied</div>
+        </div>
+      </div>
+
+      <div id="jobsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      
+      <div id="loading" class="hidden flex justify-center items-center py-12">
+        <div class="spinner"></div>
+      </div>
+    </section>
+
+    <div id="alerts" class="fixed top-4 right-4 z-50 max-w-sm"></div>
+  </div>
+
+  <script>
+    let currentResumeId = null;
+    let allJobs = [];
+    let appliedJobs = new Set();
+
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('resumeFile');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0 && files[0].type === 'application/pdf') {
+        fileInput.files = files;
+        handleFileSelect();
+      }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+      const file = fileInput.files[0];
+      if (file) {
+        uploadArea.innerHTML = `
+          <i class="fas fa-file-pdf text-4xl text-gray-400 mb-4"></i>
+          <h3 class="text-xl font-semibold mb-2">${file.name}</h3>
+          <p class="text-gray-400">Ready to upload</p>
+        `;
+      }
+    }
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const file = fileInput.files[0];
+      if (!file) {
+        showAlert('Please select a resume file', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('resume', file);
+
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = '<div class="spinner"></div><span>Uploading...</span>';
+
+      try {
+        const response = await fetch('/api/resume/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          currentResumeId = data.resumeId;
+          showAlert('Resume uploaded successfully! Finding job matches...', 'success');
+          findJobs();
+        } else {
+          showAlert(data.error || 'Upload failed', 'error');
+        }
+      } catch (error) {
+        showAlert('Network error: ' + error.message, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="fas fa-rocket"></i><span>Start Job Search</span>';
+      }
+    });
+
+    async function findJobs() {
+      document.getElementById('resultsSection').classList.remove('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('jobsList').innerHTML = '';
+
+      const advancedLinkedin = document.getElementById('advancedLinkedin').checked;
+
+      try {
+        const response = await fetch('/api/jobs/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            resumeId: currentResumeId,
+            useAdvancedLinkedin: advancedLinkedin
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          allJobs = data.jobs;
+          displayJobs(allJobs);
+          updateStats();
+          document.getElementById('stats').classList.remove('hidden');
+          
+          if (allJobs.length === 0) {
+            showAlert('No matching jobs found. Try adjusting your search.', 'info');
+          } else {
+            showAlert(`Found ${allJobs.length} matching jobs!`, 'success');
+          }
+        } else {
+          showAlert(data.error || 'Failed to find jobs', 'error');
+        }
+      } catch (error) {
+        showAlert('Network error: ' + error.message, 'error');
+      } finally {
+        document.getElementById('loading').classList.add('hidden');
+      }
+    }
+
+    function displayJobs(jobs) {
+      const jobsList = document.getElementById('jobsList');
+      jobsList.innerHTML = '';
+
+      jobs.forEach((job, index) => {
+        const matchClass = job.relevance_score >= 70 ? 'high' : 
+                          job.relevance_score >= 50 ? 'medium' : 'low';
+        
+        const jobCard = document.createElement('div');
+        jobCard.className = 'card p-6 animate-in';
+        jobCard.style.animationDelay = `${index * 0.05}s`;
+        
+        jobCard.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <h3 class="text-lg font-semibold mb-1">${job.title}</h3>
+              <p class="text-gray-400">${job.company}</p>
+            </div>
+            <span class="match-badge match-${matchClass}">
+              ${job.relevance_score}%
+            </span>
+          </div>
+          
+          <div class="flex items-center gap-2 text-sm text-gray-400 mb-4">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>${job.location}</span>
+          </div>
+          
+          ${job.matchingSkills && job.matchingSkills.length > 0 ? `
+            <div class="flex flex-wrap gap-2 mb-4">
+              ${job.matchingSkills.slice(0, 4).map(skill => 
+                `<span class="skill-tag">${skill}</span>`
+              ).join('')}
+            </div>
+          ` : ''}
+          
+          <div class="flex gap-2">
+            <button class="btn btn-primary flex-1 py-2 px-4 text-sm" onclick="applyToJob(${job.dbId || job.id})" 
+                    ${appliedJobs.has(job.dbId || job.id) ? 'disabled' : ''}>
+              <i class="fas fa-paper-plane mr-1"></i> 
+              ${appliedJobs.has(job.dbId || job.id) ? 'Applied' : 'Apply'}
+            </button>
+            <button class="btn btn-secondary flex-1 py-2 px-4 text-sm" onclick="viewJob('${job.url}')">
+              <i class="fas fa-external-link-alt mr-1"></i> View
+            </button>
+          </div>
+        `;
+        
+        jobsList.appendChild(jobCard);
+      });
+    }
+
+    async function applyToJob(jobId) {
+      if (!currentResumeId) {
+        showAlert('Please upload a resume first', 'error');
+        return;
+      }
+
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner inline-block"></div> Applying...';
+
+      try {
+        const response = await fetch('/api/applications/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resumeId: currentResumeId,
+            jobId: jobId
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          appliedJobs.add(jobId);
+          btn.innerHTML = '<i class="fas fa-check mr-1"></i> Applied';
+          showAlert('Application sent successfully!', 'success');
+          updateStats();
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i> Apply';
+          showAlert(data.error || 'Application failed', 'error');
+        }
+      } catch (error) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i> Apply';
+        showAlert('Network error: ' + error.message, 'error');
+      }
+    }
+
+    function viewJob(url) {
+      window.open(url, '_blank');
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.classList.remove('btn-primary', 'active');
+          b.classList.add('btn-secondary');
+        });
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary', 'active');
+        
+        const filter = btn.dataset.filter;
+        const jobs = filter === 'all' ? allJobs : 
+                    allJobs.filter(job => {
+                      const score = job.relevance_score;
+                      if (filter === 'high') return score >= 70;
+                      if (filter === 'medium') return score >= 50 && score < 70;
+                      if (filter === 'low') return score < 50;
+                    });
+        
+        displayJobs(jobs);
+      });
+    });
+
+    function updateStats() {
+      const highMatches = allJobs.filter(j => j.relevance_score >= 70).length;
+      
+      document.getElementById('totalJobs').textContent = allJobs.length;
+      document.getElementById('highMatches').textContent = highMatches;
+      document.getElementById('appliedJobs').textContent = appliedJobs.size;
+    }
+
+    function showAlert(message, type = 'info') {
+      const alertsContainer = document.getElementById('alerts');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      
+      const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        info: 'fa-info-circle'
+      };
+      
+      alert.innerHTML = `
+        <i class="fas ${icons[type]}"></i>
+        <span>${message}</span>
+      `;
+      
+      alertsContainer.appendChild(alert);
+      
+      setTimeout(() => {
+        alert.style.opacity = '0';
+        alert.style.transform = 'translateX(100%)';
+        setTimeout(() => alert.remove(), 300);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
