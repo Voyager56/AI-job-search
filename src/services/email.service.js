@@ -27,7 +27,7 @@ class EmailService {
       throw new Error('Email service not configured');
     }
     
-    const { resumeId, jobId, coverLetter, emailTo } = applicationData;
+    const { resumeId, jobId, coverLetter, emailTo, userId } = applicationData;
     
     try {
       console.log(`Looking for resume ID: ${resumeId}, job ID: ${jobId}`);
@@ -74,7 +74,8 @@ class EmailService {
         job_id: jobId,
         cover_letter: coverLetter,
         status: 'pending',
-        email_to: emailTo
+        email_to: emailTo,
+        user_id: userId
       });
       
       if (this.testMode) {
@@ -182,8 +183,8 @@ class EmailService {
     }
   }
   
-  async getApplicationHistory() {
-    const applications = await db('applications')
+  async getApplicationHistory(userId = null) {
+    const query = db('applications')
       .join('resumes', 'applications.resume_id', 'resumes.id')
       .join('jobs', 'applications.job_id', 'jobs.id')
       .select(
@@ -193,8 +194,12 @@ class EmailService {
         'jobs.company as job_company'
       )
       .orderBy('applications.created_at', 'desc');
+    
+    if (userId) {
+      query.where('applications.user_id', userId);
+    }
       
-    return applications;
+    return query;
   }
   
   generateTemplateCoverLetter(resumeData, jobData) {

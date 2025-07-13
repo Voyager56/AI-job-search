@@ -10,7 +10,7 @@ const connection = {
 const emailWorker = new Worker('email-sending', async (job) => {
   console.log(`Processing email job ${job.id}`);
   
-  const { resumeId, jobId, coverLetter, emailTo } = job.data;
+  const { resumeId, jobId, coverLetter, emailTo, userId } = job.data;
   
   try {
     const existing = await db('applications')
@@ -28,7 +28,8 @@ const emailWorker = new Worker('email-sending', async (job) => {
       resumeId,
       jobId,
       coverLetter,
-      emailTo
+      emailTo,
+      userId
     });
     
     await job.updateProgress(90);

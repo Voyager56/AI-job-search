@@ -13,7 +13,7 @@ const connection = {
 const pipelineWorker = new Worker('application-pipeline', async (job) => {
   console.log(`Starting application pipeline ${job.id}`);
   
-  const { resumeId, jobIds } = job.data;
+  const { resumeId, jobIds, userId } = job.data;
   const results = {
     resumeParsed: false,
     jobsMatched: 0,
@@ -100,7 +100,8 @@ const pipelineWorker = new Worker('application-pipeline', async (job) => {
           resumeId,
           jobId: app.jobId,
           coverLetter: app.coverLetter,
-          emailTo: app.emailTo
+          emailTo: app.emailTo,
+          userId
         }, 0);
         
         results.applicationsSent++;

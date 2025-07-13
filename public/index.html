@@ -201,14 +201,31 @@
 </head>
 <body class="bg-black text-white min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <nav class="flex justify-between items-center mb-8">
+      <div class="text-2xl font-bold">Job Bot</div>
+      <div class="flex gap-4" id="nav-auth">
+        <a href="/auth/login" class="px-4 py-2 text-sm hover:text-gray-300">Login</a>
+        <a href="/auth/register" class="px-4 py-2 text-sm bg-white text-black rounded-md hover:bg-gray-200">Sign Up</a>
+      </div>
+    </nav>
+    
     <header class="text-center mb-12 animate-in">
       <h1 class="text-5xl font-bold mb-4">AI Job Application Assistant</h1>
       <p class="text-gray-400 text-lg">Upload your resume and let AI find perfect job matches</p>
     </header>
 
-    <section class="mb-12 animate-in" style="animation-delay: 0.1s">
+    <section class="mb-12 animate-in" style="animation-delay: 0.1s" id="uploadSection">
       <div class="card p-8">
-        <form id="uploadForm">
+        <div id="authMessage" class="hidden text-center py-12">
+          <i class="fas fa-lock text-4xl text-gray-500 mb-4"></i>
+          <h3 class="text-xl font-semibold mb-2">Sign in to get started</h3>
+          <p class="text-gray-400 mb-6">Please login or create an account to upload your resume</p>
+          <div class="flex gap-4 justify-center">
+            <a href="/auth/login" class="btn btn-secondary px-6 py-2">Login</a>
+            <a href="/auth/register" class="btn btn-primary px-6 py-2">Sign Up</a>
+          </div>
+        </div>
+        <form id="uploadForm" class="hidden">
           <div class="upload-area rounded-lg p-12 text-center cursor-pointer mb-6" id="uploadArea">
             <i class="fas fa-cloud-upload-alt text-4xl text-gray-500 mb-4"></i>
             <h3 class="text-xl font-semibold mb-2">Drop your resume here</h3>
@@ -274,6 +291,62 @@
     let currentResumeId = null;
     let allJobs = [];
     let appliedJobs = new Set();
+    let currentUser = null;
+
+    // Check auth status on load
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+          currentUser = data.user;
+          updateNavForAuth(data.user);
+          updateUploadSection();
+        } else {
+          updateUploadSection();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    }
+
+    function updateNavForAuth(user) {
+      const navAuth = document.getElementById('nav-auth');
+      const displayName = user.name || user.email.split('@')[0];
+      navAuth.innerHTML = `
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-gray-400">Welcome, <span class="text-white font-medium">${displayName}</span></span>
+          <a href="/profile" class="px-4 py-2 text-sm hover:text-gray-300">Profile</a>
+          <button onclick="logout()" class="px-4 py-2 text-sm bg-zinc-800 rounded-md hover:bg-zinc-700">Logout</button>
+        </div>
+      `;
+    }
+
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+    }
+
+    function updateUploadSection() {
+      const uploadForm = document.getElementById('uploadForm');
+      const authMessage = document.getElementById('authMessage');
+      
+      if (currentUser) {
+        uploadForm.classList.remove('hidden');
+        authMessage.classList.add('hidden');
+      } else {
+        uploadForm.classList.add('hidden');
+        authMessage.classList.remove('hidden');
+      }
+    }
+
+    // Check auth on page load
+    checkAuth();
 
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('resumeFile');
@@ -335,6 +408,14 @@
           method: 'POST',
           body: formData
         });
+
+        if (response.status === 401) {
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = '<i class="fas fa-rocket"></i><span>Start Job Search</span>';
+          showAlert('Please login to upload resume', 'error');
+          setTimeout(() => window.location.href = '/auth/login', 2000);
+          return;
+        }
 
         const data = await response.json();
         

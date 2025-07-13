@@ -42,7 +42,7 @@ class JobService {
     }
   }
   
-  async saveJob(jobData) {
+  async saveJob(jobData, userId = null) {
     try {
       const [jobId] = await db('jobs').insert({
         title: jobData.title,
@@ -52,7 +52,8 @@ class JobService {
         url: jobData.url,
         source: jobData.source || 'manual',
         relevance_score: jobData.relevance_score || 0,
-        hr_email: jobData.contactEmail || jobData.hr_email || null
+        hr_email: jobData.contactEmail || jobData.hr_email || null,
+        user_id: userId
       });
       
       console.log(`Saved job ${jobData.title} with ID ${jobId}`);
@@ -169,7 +170,7 @@ class JobService {
     
     for (let i = 0; i < scoredJobs.length; i++) {
       try {
-        const dbId = await this.saveJob(scoredJobs[i]);
+        const dbId = await this.saveJob(scoredJobs[i], resume.user_id);
         scoredJobs[i].dbId = dbId;
       } catch (error) {
         console.error('Error saving job:', error.message);
@@ -179,12 +180,15 @@ class JobService {
     return scoredJobs.sort((a, b) => b.relevance_score - a.relevance_score);
   }
   
-  async getJobsByResumeMatch(resumeId, minScore = 50) {
-    const jobs = await db('jobs')
-      .where('relevance_score', '>=', minScore)
-      .orderBy('relevance_score', 'desc');
+  async getJobsByResumeMatch(resumeId, minScore = 50, userId = null) {
+    const query = db('jobs')
+      .where('relevance_score', '>=', minScore);
+    
+    if (userId) {
+      query.where('user_id', userId);
+    }
       
-    return jobs;
+    return query.orderBy('relevance_score', 'desc');
   }
   
   async getJob(jobId) {

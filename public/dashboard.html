@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - AI Job Application Bot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline-block; }
+    
+    .card {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      border-radius: 8px;
+    }
+    
+    .upload-area {
+      border: 2px dashed #262626;
+      background: #0a0a0a;
+      transition: all 0.2s;
+    }
+    
+    .upload-area:hover {
+      border-color: #404040;
+      background: #171717;
+    }
+    
+    .upload-area.dragover {
+      border-color: white;
+      background: #171717;
+    }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <header class="border-b border-zinc-800">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Job Application Dashboard</h1>
+      <div class="flex items-center gap-4">
+        <span id="user-name" class="text-sm text-zinc-400"></span>
+        <button hx-post="/api/auth/logout" 
+                hx-trigger="click"
+                class="text-sm hover:text-zinc-300">
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2">
+        <div class="card p-6 mb-6">
+          <h2 class="text-xl font-semibold mb-4">Upload Resume</h2>
+          <form id="uploadForm">
+            <div class="upload-area rounded-lg p-8 text-center cursor-pointer mb-4" id="uploadArea">
+              <i class="fas fa-cloud-upload-alt text-3xl text-gray-500 mb-2"></i>
+              <p class="text-sm">Drop your PDF resume here or click to browse</p>
+              <input type="file" id="resumeFile" class="hidden" accept=".pdf" required>
+            </div>
+            
+            <button type="submit" 
+                    class="w-full bg-white text-black font-medium py-2 px-4 rounded-md hover:bg-zinc-200 transition-colors">
+              Start Job Search
+            </button>
+          </form>
+        </div>
+        
+        <div id="jobs-container" hx-get="/api/jobs/recent" hx-trigger="load">
+          <div class="text-center py-8">
+            <i class="fas fa-spinner fa-spin text-2xl"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <div class="card p-6 mb-6">
+          <h3 class="text-lg font-semibold mb-4">Statistics</h3>
+          <div hx-get="/api/user/stats" hx-trigger="load" class="space-y-3">
+            <div class="text-center py-4">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card p-6">
+          <h3 class="text-lg font-semibold mb-4">Recent Applications</h3>
+          <div hx-get="/api/applications/recent" hx-trigger="load" class="space-y-2">
+            <div class="text-center py-4">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const response = await fetch('/api/auth/check');
+      const data = await response.json();
+      if (data.authenticated && data.user) {
+        document.getElementById('user-name').textContent = data.user.name || data.user.email;
+      }
+    });
+
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('resumeFile');
+    const uploadForm = document.getElementById('uploadForm');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0 && files[0].type === 'application/pdf') {
+        fileInput.files = files;
+        handleFileSelect();
+      }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+      const file = fileInput.files[0];
+      if (file) {
+        uploadArea.innerHTML = `
+          <i class="fas fa-file-pdf text-3xl text-gray-400 mb-2"></i>
+          <p class="text-sm font-medium">${file.name}</p>
+          <p class="text-xs text-gray-500">Ready to upload</p>
+        `;
+      }
+    }
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('resume', file);
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+
+      try {
+        const response = await fetch('/api/resume/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Finding Jobs...';
+          
+          const jobResponse = await fetch('/api/jobs/match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeId: data.resumeId })
+          });
+          
+          const jobData = await jobResponse.json();
+          
+          if (jobData.success) {
+            window.location.reload();
+          }
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Start Job Search';
+      }
+    });
+  </script>
+</body>
+</html>

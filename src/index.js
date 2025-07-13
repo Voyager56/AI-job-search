@@ -2,22 +2,31 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const { createBullBoard } = require('@bull-board/api');
 const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
 const { ExpressAdapter } = require('@bull-board/express');
 
-const { initDatabase } = require('./database/db');
+const { db, initDatabase } = require('./database/db');
 const resumeService = require('./services/resume.service');
 const jobService = require('./services/job.service');
 const emailService = require('./services/email.service');
 const geminiService = require('./services/gemini.service');
 const queueService = require('./services/queue.service');
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+const { requireAuth, optionalAuth } = require('./middleware/auth.middleware');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static('public', { extensions: ['html'] }));
+
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 
 initDatabase().catch(console.error);
 
@@ -37,14 +46,15 @@ const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
 
 app.use('/admin/queues', serverAdapter.getRouter());
 
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Job Application Bot API',
-    dashboard: 'http://localhost:3000/admin/queues'
-  });
+app.get('/', optionalAuth, (req, res) => {
+  if (req.user) {
+    res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+  } else {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  }
 });
 
-app.post('/api/resume/upload', upload.single('resume'), async (req, res) => {
+app.post('/api/resume/upload', requireAuth, upload.single('resume'), async (req, res) => {
   try {
     console.log('Upload endpoint hit');
     console.log('File received:', req.file ? req.file.originalname : 'No file');
@@ -63,7 +73,8 @@ app.post('/api/resume/upload', upload.single('resume'), async (req, res) => {
       console.log('Processing resume...');
       const result = await resumeService.uploadResume(
         req.file.path,
-        req.file.originalname
+        req.file.originalname,
+        req.user.id
       );
       
       console.log('Resume processed, result:', result);
@@ -86,7 +97,8 @@ app.post('/api/resume/upload', upload.single('resume'), async (req, res) => {
       console.log('Processing resume immediately...');
       const result = await resumeService.uploadResume(
         req.file.path,
-        req.file.originalname
+        req.file.originalname,
+        req.user.id
       );
       
       console.log('Resume processed, result:', result);
@@ -107,19 +119,36 @@ app.post('/api/resume/upload', upload.single('resume'), async (req, res) => {
   }
 });
 
-app.get('/api/resumes', async (req, res) => {
+app.delete('/api/resume/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await db('resumes')
+      .where({ id, user_id: req.user.id })
+      .delete();
+    
+    if (deleted) {
+      res.json({ success: true, message: 'Resume deleted' });
+    } else {
+      res.status(404).json({ success: false, error: 'Resume not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/resumes', requireAuth, async (req, res) => {
   try {
     const unique = req.query.unique === 'true';
     const resumes = unique ? 
-      await resumeService.getUniqueResumes() : 
-      await resumeService.getAllResumes();
+      await resumeService.getUniqueResumes(req.user.id) : 
+      await resumeService.getAllResumes(req.user.id);
     res.json(resumes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/jobs/search', async (req, res) => {
+app.post('/api/jobs/search', requireAuth, async (req, res) => {
   try {
     const { keywords, location } = req.body;
     const jobs = await jobService.searchJobs(keywords, location);
@@ -129,7 +158,7 @@ app.post('/api/jobs/search', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/search/georgia', async (req, res) => {
+app.post('/api/jobs/search/georgia', requireAuth, async (req, res) => {
   try {
     const { keywords, location = 'Tbilisi' } = req.body;
     const jobsGeScraper = require('./services/jobsge.scraper');
@@ -140,7 +169,7 @@ app.post('/api/jobs/search/georgia', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/match', async (req, res) => {
+app.post('/api/jobs/match', requireAuth, async (req, res) => {
   try {
     const { resumeId, useAdvancedLinkedin } = req.body;
     const jobs = await jobService.matchJobsToResume(resumeId, {
@@ -158,7 +187,7 @@ app.post('/api/jobs/match', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/match/:resumeId', async (req, res) => {
+app.post('/api/jobs/match/:resumeId', requireAuth, async (req, res) => {
   try {
     const { useAdvancedLinkedIn } = req.body || {};
     const jobs = await jobService.matchJobsToResume(req.params.resumeId, {
@@ -176,14 +205,15 @@ app.post('/api/jobs/match/:resumeId', async (req, res) => {
   }
 });
 
-app.post('/api/apply', async (req, res) => {
+app.post('/api/apply', requireAuth, async (req, res) => {
   try {
     const { resumeId, jobId, emailTo } = req.body;
     
     const job = await queueService.addEmailJob({
       resumeId,
       jobId,
-      emailTo: emailTo || 'default@example.com'
+      emailTo: emailTo || 'default@example.com',
+      userId: req.user.id
     }, 1);
     
     res.json({ 
@@ -200,7 +230,7 @@ app.post('/api/apply', async (req, res) => {
   }
 });
 
-app.post('/api/applications/apply', async (req, res) => {
+app.post('/api/applications/apply', requireAuth, async (req, res) => {
   try {
     const { resumeId, jobId } = req.body;
     
@@ -209,7 +239,8 @@ app.post('/api/applications/apply', async (req, res) => {
     const job = await queueService.addEmailJob({
       resumeId,
       jobId,
-      emailTo: null
+      emailTo: null,
+      userId: req.user.id
     }, 1);
     
     res.json({ 
@@ -227,11 +258,11 @@ app.post('/api/applications/apply', async (req, res) => {
   }
 });
 
-app.post('/api/apply/bulk', async (req, res) => {
+app.post('/api/apply/bulk', requireAuth, async (req, res) => {
   try {
     const { resumeId, jobIds } = req.body;
     
-    const job = await queueService.createApplicationPipeline(resumeId, jobIds);
+    const job = await queueService.createApplicationPipeline(resumeId, jobIds, req.user.id);
     
     res.json({
       success: true,
@@ -296,18 +327,20 @@ app.get('/api/queues/:name/job/:jobId', async (req, res) => {
   }
 });
 
-app.get('/api/applications', async (req, res) => {
+app.get('/api/applications', requireAuth, async (req, res) => {
   try {
-    const applications = await emailService.getApplicationHistory();
+    const applications = await emailService.getApplicationHistory(req.user.id);
     res.json(applications);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/jobs/:jobId', async (req, res) => {
+app.get('/api/jobs/:jobId', requireAuth, async (req, res) => {
   try {
-    const job = await jobService.getJob(req.params.jobId);
+    const job = await db('jobs')
+      .where({ id: req.params.jobId, user_id: req.user.id })
+      .first();
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -317,9 +350,11 @@ app.get('/api/jobs/:jobId', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:jobId/redirect', async (req, res) => {
+app.get('/api/jobs/:jobId/redirect', requireAuth, async (req, res) => {
   try {
-    const job = await jobService.getJob(req.params.jobId);
+    const job = await db('jobs')
+      .where({ id: req.params.jobId, user_id: req.user.id })
+      .first();
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }

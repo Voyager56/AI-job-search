@@ -77,7 +77,8 @@ class QueueService {
       resumeId: applicationData.resumeId,
       jobId: applicationData.jobId,
       coverLetter: applicationData.coverLetter,
-      emailTo: applicationData.emailTo
+      emailTo: applicationData.emailTo,
+      userId: applicationData.userId
     }, {
       priority: priority,
       delay: 5000,
@@ -92,10 +93,11 @@ class QueueService {
     return job;
   }
 
-  async createApplicationPipeline(resumeId, jobIds) {
+  async createApplicationPipeline(resumeId, jobIds, userId) {
     const pipelineJob = await this.queues.applicationPipeline.add('process-applications', {
       resumeId,
       jobIds,
+      userId,
       status: 'started',
       steps: [
         { name: 'parse-resume', completed: false },

@@ -5,7 +5,7 @@ const { db } = require('../database/db');
 const geminiService = require('./gemini.service');
 
 class ResumeService {
-  async uploadResume(filePath, filename) {
+  async uploadResume(filePath, filename, userId = null) {
     try {
       console.log('Starting resume upload:', { filePath, filename });
       
@@ -52,7 +52,8 @@ class ResumeService {
         content: text,
         pdf_content: dataBuffer,
         parsed_data: JSON.stringify(parsedData),
-        content_hash: contentHash
+        content_hash: contentHash,
+        user_id: userId
       });
       
       console.log('Resume saved to database with ID:', resumeId);
@@ -70,10 +71,12 @@ class ResumeService {
     }
   }
   
-  async getResume(resumeId) {
-    const resume = await db('resumes')
-      .where('id', resumeId)
-      .first();
+  async getResume(resumeId, userId = null) {
+    const query = db('resumes').where('id', resumeId);
+    if (userId) {
+      query.where('user_id', userId);
+    }
+    const resume = await query.first();
       
     if (resume) {
       resume.parsed_data = JSON.parse(resume.parsed_data);
@@ -82,29 +85,44 @@ class ResumeService {
     return resume;
   }
   
-  async getAllResumes() {
-    const resumes = await db('resumes')
+  async getAllResumes(userId = null) {
+    const query = db('resumes')
       .select('id', 'filename', 'created_at', 'content_hash')
       .orderBy('created_at', 'desc');
+    
+    if (userId) {
+      query.where('user_id', userId);
+    }
       
-    return resumes;
+    return query;
   }
   
-  async getUniqueResumes() {
-    const resumes = await db('resumes')
+  async getUniqueResumes(userId = null) {
+    const subquery = db('resumes')
+      .select('content_hash')
+      .max('created_at as max_created_at')
+      .groupBy('content_hash');
+    
+    if (userId) {
+      subquery.where('user_id', userId);
+    }
+    
+    const query = db('resumes')
       .select('resumes.*')
       .innerJoin(
-        db('resumes')
-          .select('content_hash')
-          .max('created_at as max_created_at')
-          .groupBy('content_hash')
-          .as('latest'),
+        subquery.as('latest'),
         function() {
           this.on('resumes.content_hash', '=', 'latest.content_hash')
             .andOn('resumes.created_at', '=', 'latest.max_created_at');
         }
       )
       .orderBy('resumes.created_at', 'desc');
+    
+    if (userId) {
+      query.where('resumes.user_id', userId);
+    }
+    
+    const resumes = await query;
     
     return resumes.map(resume => ({
       ...resume,

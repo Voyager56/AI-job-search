@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - AI Job Application Bot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/response-targets.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    
+    .htmx-indicator {
+      display: none;
+    }
+    .htmx-request .htmx-indicator {
+      display: inline-block;
+    }
+    .htmx-request.htmx-indicator {
+      display: inline-block;
+    }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2">Welcome Back</h1>
+        <p class="text-zinc-400">Login to your account</p>
+      </div>
+      
+      <form hx-post="/api/auth/login" 
+            hx-ext="response-targets"
+            hx-target="#form-message" 
+            hx-target-4xx="#form-message"
+            hx-target-5xx="#form-message"
+            hx-swap="innerHTML"
+            hx-indicator="#login-spinner">
+        
+        <div class="mb-4">
+          <label for="email" class="block text-sm font-medium mb-2">Email</label>
+          <input type="email" 
+                 id="email" 
+                 name="email" 
+                 required
+                 class="w-full px-4 py-2 bg-black border border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
+                 placeholder="you@example.com">
+        </div>
+        
+        <div class="mb-6">
+          <label for="password" class="block text-sm font-medium mb-2">Password</label>
+          <input type="password" 
+                 id="password" 
+                 name="password" 
+                 required
+                 class="w-full px-4 py-2 bg-black border border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
+                 placeholder="••••••••">
+        </div>
+        
+        <div id="form-message" class="mb-4"></div>
+        
+        <button type="submit" 
+                class="w-full bg-white text-black font-medium py-2 px-4 rounded-md hover:bg-zinc-200 transition-colors flex items-center justify-center">
+          <span>Login</span>
+          <i id="login-spinner" class="fas fa-spinner fa-spin ml-2 htmx-indicator"></i>
+        </button>
+      </form>
+      
+      <div class="mt-6 text-center">
+        <p class="text-sm text-zinc-400">
+          Don't have an account? 
+          <a href="/auth/register" class="text-white hover:underline">Register</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+      if (evt.detail.xhr.status === 200 && evt.detail.target.id === 'form-message') {
+        if (evt.detail.xhr.responseText.includes('successful')) {
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
