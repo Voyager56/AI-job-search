@@ -35,5 +35,8 @@ Thumbs.db
 *.tmp
 temp/
 
+CLAUDE.md
+QUEUE_LEARNING_GUIDE.md
+
 # Test emails
 test-emails/
